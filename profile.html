@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="ANONYMOUS – Your anonymous profile." />
+    <title>Profile – ANONYMOUS</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+
+    <!-- Navbar -->
+    <nav class="anon-navbar d-flex align-items-center justify-content-between">
+        <a href="index.html" class="brand">ANONYMOUS</a>
+        <div class="d-flex align-items-center gap-2">
+            <a href="index.html" class="nav-link" id="navHome">HOME</a>
+            <a href="profile.html" class="nav-link active" id="navProfile">PROFILE</a>
+            <button class="nav-link" id="navLogout"
+                style="background:none; border:1px solid #330000; cursor:pointer;">LOGOUT</button>
+        </div>
+    </nav>
+
+    <div class="page-wrapper">
+
+        <!-- Profile Header -->
+        <div class="profile-header">
+            <div class="d-flex align-items-center gap-3 flex-wrap">
+                <div>
+                    <div class="profile-uname" id="profileUsername">--</div>
+                    <div class="profile-joined" id="profileJoined">--</div>
+                </div>
+                <div class="ms-auto d-flex gap-2 flex-wrap">
+                    <div style="border:1px solid #1a1a1a; padding:10px 16px; text-align:center; min-width:80px;">
+                        <div style="color:#ff0000; font-size:1.3rem; font-weight:700;" id="statPosts">0</div>
+                        <div style="color:#333; font-size:0.7rem; letter-spacing:1px;">POSTS</div>
+                    </div>
+                    <div style="border:1px solid #1a1a1a; padding:10px 16px; text-align:center; min-width:80px;">
+                        <div style="color:#ff0000; font-size:1.3rem; font-weight:700;" id="statComments">0</div>
+                        <div style="color:#333; font-size:0.7rem; letter-spacing:1px;">COMMENTS</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Privacy notice -->
+            <div class="form-hint" style="margin-top:16px;">
+                <strong>&#128274; Privacy:</strong> Your username and activity are <strong>never</strong> visible to
+                other users. Only you can see this profile.
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <ul class="anon-tabs" id="profileTabs">
+            <li><button class="active" data-tab="posts">My Posts</button></li>
+            <li><button data-tab="comments">My Comments</button></li>
+        </ul>
+
+        <!-- Tab: Posts -->
+        <div id="tabPosts">
+            <div id="myPostList"></div>
+            <div id="myPostEmpty"
+                style="display:none; color:#333; text-align:center; padding:30px 0; font-size:0.85rem; letter-spacing:2px;">
+                YOU HAVE NO POSTS YET.
+            </div>
+        </div>
+
+        <!-- Tab: Comments -->
+        <div id="tabComments" style="display:none;">
+            <div id="myCommentList"></div>
+            <div id="myCommentEmpty"
+                style="display:none; color:#333; text-align:center; padding:30px 0; font-size:0.85rem; letter-spacing:2px;">
+                YOU HAVE NO COMMENTS YET.
+            </div>
+        </div>
+
+    </div>
+
+    <div class="site-footer">ANONYMOUS &mdash; your identity stays here.</div>
+
+    <script src="app.js"></script>
+    <script src="profile.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>

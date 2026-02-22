@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="ANONYMOUS – A place for the unheard. No names. No faces." />
+  <title>ANONYMOUS</title>
+
+  <!-- Bootstrap 5 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+  <!-- Site CSS -->
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* Welcome-specific overrides */
+    .welcome-divider {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      width: 300px;
+      margin: 0 auto 30px;
+    }
+
+    .welcome-logo {
+      font-size: clamp(3rem, 10vw, 6rem);
+    }
+
+    .blink {
+      color: #8b0000;
+      font-size: 0.7rem;
+      letter-spacing: 4px;
+    }
+
+    .btn-welcome-group {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      align-items: center;
+    }
+
+    .btn-welcome-group a {
+      width: 220px;
+      text-align: center;
+    }
+
+    .warning-text {
+      color: #2a0000;
+      font-size: 0.72rem;
+      letter-spacing: 2px;
+      margin-top: 40px;
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="welcome-wrapper">
+
+    <!-- Logo -->
+    <span class="welcome-logo">ANONYMOUS</span>
+    <div class="welcome-tagline">you are not welcome here.</div>
+    <hr class="welcome-divider" />
+
+    <!-- Description -->
+    <div class="welcome-desc">
+      <p>
+        This is not a social network.<br />
+        This is not a forum.<br />
+        This is not a place for your identity.
+      </p>
+      <br />
+      <p>
+        No names. No faces. No history.<br />
+        What you write exists without you.<br />
+        What you read was written by no one.
+      </p>
+      <br />
+      <p>
+        Enter at your own discretion.<br />
+        <strong class="text-red">We are watching. We are no one.</strong>
+      </p>
+    </div>
+
+    <!-- CTA Buttons -->
+    <div class="btn-welcome-group">
+      <a href="register.html" class="btn-anon">[ register ]</a>
+      <a href="login.html" class="btn-anon btn-anon-ghost">[ enter ]</a>
+    </div>
+
+    <p class="warning-text">by continuing, you consent to nothing.</p>
+
+    <!-- Blinking marker (CSS only) -->
+    <div class="blink" style="margin-top:30px;">&#9608;</div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    // Redirect logged-in users to homepage
+    redirectIfLoggedIn('index.html');
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>
