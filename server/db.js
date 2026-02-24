@@ -13,6 +13,9 @@ const fs = require('fs');
 
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'anonymous.db');
 
+/* Ensure the directory for the DB file exists (needed for Railway /data volume) */
+fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
+
 /* ── The synchronous db wrapper ────────────────────────────────── */
 let _db = null;  // sql.js Database instance
 
@@ -72,7 +75,10 @@ function rowToObj(stmt) {
 
 /* ── Initialisation (must be awaited before starting the server) ─── */
 async function init() {
-  const SQL = await initSqlJs();
+  /* Locate the WASM file explicitly — required on Linux/Docker (Railway) */
+  const SQL = await initSqlJs({
+    locateFile: file => path.join(path.dirname(require.resolve('sql.js')), file)
+  });
 
   if (fs.existsSync(DB_PATH)) {
     const fileBuffer = fs.readFileSync(DB_PATH);
