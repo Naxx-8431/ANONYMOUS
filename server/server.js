@@ -2,7 +2,7 @@
 
 const express = require('express');
 const session = require('express-session');
-
+const FileStore = require('session-file-store')(session);
 const helmet = require('helmet');
 const path = require('path');
 const { init } = require('./db');

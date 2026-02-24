@@ -2,9 +2,10 @@
 node_modules/
 server/node_modules/
 
-# Database files (never commit live data)
+# Database and session files (never commit live data)
 server/anonymous.db
 server/sessions.db
+server/sessions/
 
 # Logs
 *.log
