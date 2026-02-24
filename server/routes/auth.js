@@ -127,13 +127,17 @@ router.post('/login', loginLimiter, async (req, res) => {
         const match = await bcrypt.compare(password, user.pw_hash);
         if (!match) return res.status(401).json({ ok: false, error: 'Invalid credentials.' });
 
-        // Regenerate session to prevent fixation
+        // Regenerate session to prevent fixation, then save explicitly
+        // before responding so the store is ready for the next request.
         req.session.regenerate((err) => {
             if (err) return res.status(500).json({ ok: false, error: 'Session error.' });
             req.session.userId = user.id;
             req.session.username = user.username;
             req.session.joined = user.joined;
-            res.json({ ok: true, username: user.username });
+            req.session.save((saveErr) => {
+                if (saveErr) return res.status(500).json({ ok: false, error: 'Session save error.' });
+                res.json({ ok: true, username: user.username });
+            });
         });
     } catch (err) {
         console.error('Login error:', err);
