@@ -2,7 +2,7 @@
 
 const express = require('express');
 const session = require('express-session');
-const MemoryStore = require('memorystore')(session);
+
 const helmet = require('helmet');
 const path = require('path');
 const { init } = require('./db');
@@ -36,9 +36,6 @@ app.use(express.urlencoded({ extended: false, limit: '50kb' }));
 
 /* ── Sessions ────────────────────────────────────────────────────── */
 app.use(session({
-    store: new MemoryStore({
-        checkPeriod: 60 * 60 * 1000,  // prune expired sessions every 1h
-    }),
     secret: process.env.SESSION_SECRET || 'anon__change_this_secret_in_production',
     resave: false,
     saveUninitialized: false,
@@ -46,7 +43,7 @@ app.use(session({
     cookie: {
         httpOnly: true,
         sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production',
+        secure: false,   // set true only on HTTPS (Render/Railway handle this at proxy level)
         maxAge: 7 * 24 * 60 * 60 * 1000,
         path: '/',
     },
