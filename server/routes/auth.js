@@ -159,6 +159,7 @@ router.post('/logout', (req, res) => {
    GET /api/auth/me
    ================================================================ */
 router.get('/me', (req, res) => {
+    console.log('[/me] sessionID:', req.sessionID, '| userId:', req.session?.userId);
     if (!req.session || !req.session.userId) {
         return res.json({ ok: false, user: null });
     }
