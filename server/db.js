@@ -11,7 +11,7 @@ const initSqlJs = require('sql.js');
 const path = require('path');
 const fs = require('fs');
 
-const DB_PATH = path.join(__dirname, 'anonymous.db');
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'anonymous.db');
 
 /* ── The synchronous db wrapper ────────────────────────────────── */
 let _db = null;  // sql.js Database instance
