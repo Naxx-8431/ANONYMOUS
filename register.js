@@ -36,7 +36,9 @@
     function generateOTP() {
         const arr = new Uint32Array(1);
         crypto.getRandomValues(arr);
-        return String(arr[0] % 1000000).padStart(6, '0');
+        // Always 100000–999999: 6 digits, never a leading zero
+        // (some email templates render numbers and would strip a leading 0)
+        return String(100000 + (arr[0] % 900000));
     }
 
     function maskEmail(email) {
