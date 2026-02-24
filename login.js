@@ -1,144 +1,97 @@
 'use strict';
 
-// Redirect if already logged in
-redirectIfLoggedIn('index.html');
+(async () => {
+    /* Redirect if already logged in */
+    await redirectIfLoggedIn('index.html');
 
-/* ---- Brute-force rate limiting (client-side only, complemented by backend) ---- */
-const LOCK_KEY = 'anon_login_attempts';
-const MAX_ATTEMPTS = 5;
-const LOCK_SECONDS = 30;
+    /* ── Brute-force rate limiting (client-side display only) ──── */
+    const LOCK_KEY = 'anon_login_attempts';
+    const MAX_ATTEMPTS = 5;
+    const LOCK_SECS = 30;
 
-function getAttemptData() {
-    try { return JSON.parse(localStorage.getItem(LOCK_KEY)) || { count: 0, lockedUntil: 0 }; }
-    catch { return { count: 0, lockedUntil: 0 }; }
-}
-
-function isLocked() {
-    const d = getAttemptData();
-    return d.lockedUntil > Date.now();
-}
-
-function recordFailure() {
-    const d = getAttemptData();
-    d.count += 1;
-    if (d.count >= MAX_ATTEMPTS) {
-        d.lockedUntil = Date.now() + LOCK_SECONDS * 1000;
-        d.count = 0;
+    function getAttempts() {
+        try { return JSON.parse(sessionStorage.getItem(LOCK_KEY)) || { count: 0, lockedAt: null }; }
+        catch { return { count: 0, lockedAt: null }; }
     }
-    localStorage.setItem(LOCK_KEY, JSON.stringify(d));
-}
+    function setAttempts(obj) { sessionStorage.setItem(LOCK_KEY, JSON.stringify(obj)); }
 
-function clearAttempts() {
-    localStorage.removeItem(LOCK_KEY);
-}
+    const form = document.getElementById('loginForm');
+    const msgEl = document.getElementById('alertBox');   // matches login.html
+    const lockEl = document.getElementById('lockMsg');
+    const submitBtn = document.getElementById('loginBtn');
 
-/* ---- Lock countdown ---- */
-let lockInterval = null;
-function startLockCountdown() {
-    const lockMsg = document.getElementById('lockMsg');
-    const lockTimer = document.getElementById('lockTimer');
-    const btn = document.getElementById('loginBtn');
-    if (!lockMsg || !lockTimer || !btn) return;
+    function showMsg(msg, isErr = true) {
+        msgEl.innerText = msg;
+        msgEl.className = 'anon-alert' + (isErr ? '' : ' anon-alert-success');
+        msgEl.style.display = 'block';
+    }
 
-    const data = getAttemptData();
-    if (data.lockedUntil <= Date.now()) return;
-
-    lockMsg.style.display = 'block';
-    btn.disabled = true;
-
-    lockInterval = setInterval(() => {
-        const remaining = Math.ceil((data.lockedUntil - Date.now()) / 1000);
-        if (remaining <= 0) {
-            clearInterval(lockInterval);
-            lockMsg.style.display = 'none';
-            btn.disabled = false;
-            lockTimer.innerText = LOCK_SECONDS;
+    /* Check if already locked */
+    (function checkLock() {
+        const a = getAttempts();
+        if (!a.lockedAt) return;
+        const elapsed = (Date.now() - a.lockedAt) / 1000;
+        if (elapsed < LOCK_SECS) {
+            const left = Math.ceil(LOCK_SECS - elapsed);
+            form.style.pointerEvents = 'none';
+            lockEl.style.display = 'block';
+            const interval = setInterval(() => {
+                const now = Math.ceil(LOCK_SECS - (Date.now() - a.lockedAt) / 1000);
+                lockEl.innerText = `Too many failed attempts. Wait ${Math.max(0, now)}s.`;
+                if (now <= 0) { clearInterval(interval); unlockForm(); }
+            }, 1000);
         } else {
-            lockTimer.innerText = remaining;
+            setAttempts({ count: 0, lockedAt: null });
         }
-    }, 500);
-}
+    })();
 
-// Check on page load
-if (isLocked()) startLockCountdown();
-
-/* ---- Helpers ---- */
-function showAlert(msg) {
-    const box = document.getElementById('alertBox');
-    if (!box) return;
-    box.className = 'anon-alert';
-    box.innerText = msg;
-    box.style.display = 'block';
-}
-
-function clearAlert() {
-    const box = document.getElementById('alertBox');
-    if (box) { box.style.display = 'none'; box.innerText = ''; }
-}
-
-function markFieldError(id, show = true) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    if (show) el.classList.add('is-invalid');
-    else el.classList.remove('is-invalid');
-}
-
-/* ---- Submit ---- */
-document.getElementById('loginForm').addEventListener('submit', function (e) {
-    e.preventDefault();
-    clearAlert();
-
-    if (isLocked()) {
-        startLockCountdown();
-        return;
+    function unlockForm() {
+        form.style.pointerEvents = '';
+        lockEl.style.display = 'none';
+        lockEl.innerText = '';
+        setAttempts({ count: 0, lockedAt: null });
     }
 
-    const ident = document.getElementById('loginIdent').value.trim();
-    const password = document.getElementById('loginPassword').value;
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        msgEl.style.display = 'none';
 
-    let hasError = false;
+        const a = getAttempts();
+        if (a.lockedAt && (Date.now() - a.lockedAt) / 1000 < LOCK_SECS) return;
 
-    if (!ident) {
-        markFieldError('loginIdent');
-        document.getElementById('identErr').innerText = 'This field is required.';
-        hasError = true;
-    } else {
-        markFieldError('loginIdent', false);
-        document.getElementById('identErr').innerText = '';
-    }
+        const ident = document.getElementById('loginIdent').value.trim();
+        const password = document.getElementById('loginPassword').value;
 
-    if (!password) {
-        markFieldError('loginPassword');
-        document.getElementById('passwordErr').innerText = 'This field is required.';
-        hasError = true;
-    } else {
-        markFieldError('loginPassword', false);
-        document.getElementById('passwordErr').innerText = '';
-    }
+        if (!ident || !password) { showMsg('All fields required.'); return; }
 
-    if (hasError) return;
+        submitBtn.disabled = true;
+        submitBtn.innerText = '[ checking... ]';
 
-    const btn = document.getElementById('loginBtn');
-    btn.disabled = true;
-    btn.innerText = '[ verifying... ]';
+        const result = await Auth.login(ident, password);
 
-    setTimeout(() => {
-        const result = Auth.login(ident, password);
-        if (result.ok) {
-            clearAttempts();
-            window.location.href = 'index.html';
-        } else {
-            recordFailure();
-            if (isLocked()) {
-                startLockCountdown();
-                showAlert('Too many failed attempts. Please wait before trying again.');
+        submitBtn.disabled = false;
+        submitBtn.innerText = '[ enter ]';
+
+        if (!result.ok) {
+            const updated = { count: a.count + 1, lockedAt: a.lockedAt };
+            if (updated.count >= MAX_ATTEMPTS) { updated.lockedAt = Date.now(); }
+            setAttempts(updated);
+
+            if (updated.count >= MAX_ATTEMPTS) {
+                form.style.pointerEvents = 'none';
+                lockEl.innerText = `Too many failed attempts. Wait ${LOCK_SECS}s.`;
+                lockEl.style.display = 'block';
+                setTimeout(unlockForm, LOCK_SECS * 1000);
             } else {
-                const data = getAttemptData();
-                const remaining = MAX_ATTEMPTS - data.count;
-                showAlert(`Invalid credentials. ${remaining} attempt(s) remaining before lockout.`);
-                btn.disabled = false;
-                btn.innerText = '[ enter ]';
+                showMsg(result.error || 'Invalid credentials.');
             }
+            return;
         }
-    }, 400);
-});
+
+        // Success
+        setAttempts({ count: 0, lockedAt: null });
+        showMsg('Login successful. Redirecting…', false);
+        setTimeout(() => { window.location.href = 'index.html'; }, 600);
+    });
+
+})();

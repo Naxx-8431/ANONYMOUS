@@ -1,336 +1,276 @@
 'use strict';
 
-// Must be logged in
-requireLogin();
+(async () => {
+    /* ── Auth guard ─────────────────────────────────────────────── */
+    const session = await requireLogin();
+    if (!session) return;
 
-/* ---- Logout ---- */
-document.getElementById('navLogout').addEventListener('click', () => Auth.logout());
+    /* ── Logout ──────────────────────────────────────────────────── */
+    document.getElementById('navLogout').addEventListener('click', () => Auth.logout());
 
-/* ---- State ---- */
-let currentPostId = null;
-let isSearching = false;
+    /* ── State ───────────────────────────────────────────────────── */
+    let currentPostId = null;
 
-/* ================================================================
-   POST RENDERING
-   ================================================================ */
-function buildPostCard(post) {
-    const votes = Votes.get(post.id);
-    const commentCount = Comments.getByPost(post.id).length;
-    const session = Auth.session();
+    /* ==============================================================
+       RENDER HELPERS
+       ============================================================== */
+    function renderPostCard(post) {
+        const lClass = post.myVote === 'like' ? 'liked' : '';
+        const dClass = post.myVote === 'dislike' ? 'disliked' : '';
+        const bodyPreview = post.body.length > 200 ? post.body.slice(0, 200) + '...' : post.body;
 
-    const card = document.createElement('div');
-    card.className = 'post-card';
-    card.dataset.postId = post.id;
-
-    const title = escapeHtml(post.title);
-    const bodyPreview = escapeHtml(post.body.length > 180 ? post.body.slice(0, 180) + '...' : post.body);
-    const dateStr = formatDate(post.createdAt);
-    const lClass = votes.mine === 'like' ? 'liked' : '';
-    const dClass = votes.mine === 'dislike' ? 'disliked' : '';
-
-    card.innerHTML = `
-    <div class="post-title">${title}</div>
-    <div class="post-body">${bodyPreview}</div>
-    <div class="d-flex align-items-center justify-content-between flex-wrap" style="gap:8px; margin-top:8px;">
-      <div style="display:flex; gap:8px; align-items:center;">
-        <button class="vote-btn ${lClass}" data-vote="like" data-post="${post.id}" title="Like">
-          &#9650; <span class="like-count">${votes.like}</span>
-        </button>
-        <button class="vote-btn ${dClass}" data-vote="dislike" data-post="${post.id}" title="Dislike">
-          &#9660; <span class="dislike-count">${votes.dislike}</span>
-        </button>
-        <button class="btn-anon-ghost btn-anon-sm open-post" data-post="${post.id}">
-          [ read + ${commentCount} comment${commentCount !== 1 ? 's' : ''} ]
-        </button>
-      </div>
-      <div class="post-meta">
-        <span>${dateStr}</span>
-      </div>
-    </div>
-  `;
-    return card;
-}
-
-function renderPosts(posts) {
-    const list = document.getElementById('postList');
-    const empty = document.getElementById('emptyMsg');
-    list.innerHTML = '';
-
-    if (!posts || posts.length === 0) {
-        empty.style.display = 'block';
-        return;
-    }
-    empty.style.display = 'none';
-    posts.forEach(p => list.appendChild(buildPostCard(p)));
-}
-
-/* ================================================================
-   POST LIST LOAD
-   ================================================================ */
-function loadPosts() {
-    const posts = isSearching
-        ? Posts.search(document.getElementById('searchInput').value)
-        : Posts.getAll();
-    renderPosts(posts);
-}
-
-loadPosts();
-
-/* ================================================================
-   SEARCH
-   ================================================================ */
-document.getElementById('searchBtn').addEventListener('click', doSearch);
-document.getElementById('searchInput').addEventListener('keydown', e => {
-    if (e.key === 'Enter') doSearch();
-});
-
-function doSearch() {
-    const q = document.getElementById('searchInput').value.trim();
-    const status = document.getElementById('searchStatus');
-    const clearBtn = document.getElementById('clearSearch');
-    const heading = document.getElementById('postsHeading');
-
-    if (!q) {
-        isSearching = false;
-        status.innerText = '';
-        clearBtn.style.display = 'none';
-        heading.innerText = 'LATEST POSTS';
-        loadPosts();
-        return;
-    }
-
-    isSearching = true;
-    clearBtn.style.display = 'inline-block';
-
-    const results = Posts.search(q);
-    heading.innerText = `SEARCH RESULTS`;
-    status.innerText = `${results.length} result(s) for "${escapeHtml(q)}"`;
-    renderPosts(results);
-}
-
-document.getElementById('clearSearch').addEventListener('click', () => {
-    document.getElementById('searchInput').value = '';
-    isSearching = false;
-    document.getElementById('searchStatus').innerText = '';
-    document.getElementById('clearSearch').style.display = 'none';
-    document.getElementById('postsHeading').innerText = 'LATEST POSTS';
-    loadPosts();
-});
-
-/* ================================================================
-   NEW POST FORM
-   ================================================================ */
-document.getElementById('togglePostForm').addEventListener('click', () => {
-    const wrapper = document.getElementById('postFormWrapper');
-    const isHidden = wrapper.style.display === 'none';
-    wrapper.style.display = isHidden ? 'block' : 'none';
-    document.getElementById('togglePostForm').innerText = isHidden ? '[ - close ]' : '[ + new post ]';
-});
-
-document.getElementById('cancelPost').addEventListener('click', () => {
-    document.getElementById('postFormWrapper').style.display = 'none';
-    document.getElementById('togglePostForm').innerText = '[ + new post ]';
-    document.getElementById('newPostForm').reset();
-    document.getElementById('charCount').innerText = '0';
-});
-
-document.getElementById('postBody').addEventListener('input', function () {
-    document.getElementById('charCount').innerText = this.value.length;
-});
-
-document.getElementById('newPostForm').addEventListener('submit', function (e) {
-    e.preventDefault();
-
-    const title = document.getElementById('postTitle').value;
-    const body = document.getElementById('postBody').value;
-    const alertBox = document.getElementById('postAlertBox');
-
-    // Clear errors
-    ['postTitle', 'postBody'].forEach(id => document.getElementById(id).classList.remove('is-invalid'));
-    alertBox.style.display = 'none';
-
-    let hasError = false;
-    if (!title.trim()) {
-        document.getElementById('postTitle').classList.add('is-invalid');
-        document.getElementById('postTitleErr').innerText = 'Title is required.';
-        hasError = true;
-    }
-    if (!body.trim()) {
-        document.getElementById('postBody').classList.add('is-invalid');
-        document.getElementById('postBodyErr').innerText = 'Content is required.';
-        hasError = true;
-    }
-    if (hasError) return;
-
-    const btn = document.getElementById('submitPost');
-    btn.disabled = true;
-    btn.innerText = '[ posting... ]';
-
-    setTimeout(() => {
-        const result = Posts.create(title, body);
-        if (result.ok) {
-            document.getElementById('newPostForm').reset();
-            document.getElementById('charCount').innerText = '0';
-            document.getElementById('postFormWrapper').style.display = 'none';
-            document.getElementById('togglePostForm').innerText = '[ + new post ]';
-            isSearching = false;
-            document.getElementById('postsHeading').innerText = 'LATEST POSTS';
-            document.getElementById('searchStatus').innerText = '';
-            loadPosts();
-        } else {
-            alertBox.className = 'anon-alert';
-            alertBox.innerText = result.error;
-            alertBox.style.display = 'block';
-        }
-        btn.disabled = false;
-        btn.innerText = '[ submit ]';
-    }, 300);
-});
-
-/* ================================================================
-   VOTE HANDLER (event delegation)
-   ================================================================ */
-document.getElementById('postList').addEventListener('click', function (e) {
-    const voteBtn = e.target.closest('[data-vote]');
-    const openBtn = e.target.closest('.open-post');
-
-    if (voteBtn) {
-        const postId = voteBtn.dataset.post;
-        const type = voteBtn.dataset.vote;
-        Votes.vote(postId, type);
-        // Update counts in-place
-        const card = document.querySelector(`.post-card[data-post-id="${postId}"]`);
-        if (card) {
-            const v = Votes.get(postId);
-            card.querySelector('.like-count').innerText = v.like;
-            card.querySelector('.dislike-count').innerText = v.dislike;
-            card.querySelectorAll('.vote-btn').forEach(b => {
-                b.classList.remove('liked', 'disliked');
-                if (v.mine === 'like' && b.dataset.vote === 'like') b.classList.add('liked');
-                if (v.mine === 'dislike' && b.dataset.vote === 'dislike') b.classList.add('disliked');
-            });
-        }
-        return;
-    }
-
-    if (openBtn) {
-        openPostModal(openBtn.dataset.post);
-    }
-});
-
-/* ================================================================
-   POST DETAIL MODAL
-   ================================================================ */
-function openPostModal(postId) {
-    currentPostId = postId;
-    const post = Posts.getById(postId);
-    if (!post) return;
-
-    const modal = document.getElementById('postModal');
-    const content = document.getElementById('modalContent');
-    const votes = Votes.get(postId);
-    const lClass = votes.mine === 'like' ? 'liked' : '';
-    const dClass = votes.mine === 'dislike' ? 'disliked' : '';
-
-    content.innerHTML = `
-    <div class="site-box">
-      <div class="post-title" style="font-size:1.15rem; margin-bottom:10px;">${escapeHtml(post.title)}</div>
-      <div class="post-body" style="font-size:0.9rem; margin-bottom:14px;">${escapeHtml(post.body)}</div>
-      <div class="d-flex align-items-center" style="gap:10px;">
-        <button class="vote-btn modal-vote ${lClass}" data-vote="like" data-post="${postId}">
-          &#9650; <span id="modalLike">${votes.like}</span>
-        </button>
-        <button class="vote-btn modal-vote ${dClass}" data-vote="dislike" data-post="${postId}">
-          &#9660; <span id="modalDislike">${votes.dislike}</span>
-        </button>
-        <span class="post-meta">${formatDate(post.createdAt)}</span>
-      </div>
-    </div>
-  `;
-
-    renderComments(postId);
-    modal.style.display = 'block';
-    document.body.style.overflow = 'hidden';
-}
-
-document.getElementById('closeModal').addEventListener('click', () => {
-    document.getElementById('postModal').style.display = 'none';
-    document.body.style.overflow = '';
-    currentPostId = null;
-    document.getElementById('commentBody').value = '';
-    document.getElementById('commentCharCount').innerText = '0';
-    document.getElementById('commentAlert').style.display = 'none';
-    // Refresh list to update comment counts
-    loadPosts();
-});
-
-// Vote inside modal
-document.getElementById('postModal').addEventListener('click', function (e) {
-    const voteBtn = e.target.closest('.modal-vote');
-    if (!voteBtn) return;
-    const postId = voteBtn.dataset.post;
-    const type = voteBtn.dataset.vote;
-    Votes.vote(postId, type);
-    const v = Votes.get(postId);
-    document.getElementById('modalLike').innerText = v.like;
-    document.getElementById('modalDislike').innerText = v.dislike;
-    document.querySelectorAll('.modal-vote').forEach(b => {
-        b.classList.remove('liked', 'disliked');
-        if (v.mine === 'like' && b.dataset.vote === 'like') b.classList.add('liked');
-        if (v.mine === 'dislike' && b.dataset.vote === 'dislike') b.classList.add('disliked');
-    });
-});
-
-/* ================================================================
-   COMMENTS
-   ================================================================ */
-function renderComments(postId) {
-    const comments = Comments.getByPost(postId);
-    const list = document.getElementById('commentList');
-    const noMsg = document.getElementById('noComments');
-    list.innerHTML = '';
-
-    if (!comments.length) {
-        noMsg.style.display = 'block';
-        return;
-    }
-    noMsg.style.display = 'none';
-    comments.forEach(c => {
         const div = document.createElement('div');
-        div.className = 'comment-item';
+        div.className = 'post-card';
+        div.dataset.postId = post.id;
         div.innerHTML = `
-      <div class="comment-body">${escapeHtml(c.body)}</div>
-      <div class="comment-meta">${formatDate(c.createdAt)}</div>
+      <div class="post-title">${escapeHtml(post.title)}</div>
+      <div class="post-body">${escapeHtml(bodyPreview)}</div>
+      <div class="post-meta d-flex justify-content-between align-items-center flex-wrap" style="gap:8px;">
+        <div style="display:flex; gap:10px; align-items:center;">
+          <button class="vote-btn ${lClass}" data-vote="like"    data-post="${post.id}">&#9650; <span class="like-count">${post.likes}</span></button>
+          <button class="vote-btn ${dClass}" data-vote="dislike" data-post="${post.id}">&#9660; <span class="dislike-count">${post.dislikes}</span></button>
+        </div>
+        <div style="display:flex; gap:12px; align-items:center;">
+          <span>${formatDate(post.created_at)}</span>
+          <button class="btn-anon-ghost btn-anon-sm view-post-btn" data-post="${post.id}">[ read / comment ]</button>
+        </div>
+      </div>
     `;
-        list.appendChild(div);
+        return div;
+    }
+
+    /* ==============================================================
+       LOAD POSTS
+       ============================================================== */
+    async function loadPosts(query = '') {
+        const listEl = document.getElementById('postList');
+        const emptyEl = document.getElementById('emptyMsg');
+        listEl.innerHTML = '<p style="color:#333; text-align:center; letter-spacing:2px; padding:30px 0;">loading...</p>';
+
+        const posts = query ? await Posts.search(query) : await Posts.getAll();
+
+        listEl.innerHTML = '';
+        if (!posts.length) { emptyEl.style.display = 'block'; return; }
+        emptyEl.style.display = 'none';
+        posts.forEach(p => listEl.appendChild(renderPostCard(p)));
+    }
+
+    loadPosts();
+
+    /* ==============================================================
+       SEARCH
+       ============================================================== */
+    const searchInput = document.getElementById('searchInput');
+    const searchBtn = document.getElementById('searchBtn');
+    const clearBtn = document.getElementById('clearSearch');
+
+    async function doSearch() {
+        const q = searchInput.value.trim();
+        if (!q) { clearBtn.style.display = 'none'; await loadPosts(); return; }
+        clearBtn.style.display = 'inline-block';
+        await loadPosts(q);
+    }
+
+    searchBtn.addEventListener('click', doSearch);
+    searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+    clearBtn.addEventListener('click', async () => {
+        searchInput.value = '';
+        clearBtn.style.display = 'none';
+        await loadPosts();
     });
-}
 
-document.getElementById('commentBody').addEventListener('input', function () {
-    document.getElementById('commentCharCount').innerText = this.value.length;
-});
+    /* ==============================================================
+       NEW POST FORM
+       ============================================================== */
+    const newPostForm = document.getElementById('newPostForm');
+    const alertBox = document.getElementById('postAlertBox');
+    const toggleBtn = document.getElementById('togglePostForm');
+    const formWrapper = document.getElementById('postFormWrapper');
+    const cancelBtn = document.getElementById('cancelPost');
 
-document.getElementById('submitComment').addEventListener('click', () => {
-    if (!currentPostId) return;
-    const body = document.getElementById('commentBody').value;
-    const alertEl = document.getElementById('commentAlert');
-    alertEl.style.display = 'none';
+    function toggleForm(show) {
+        formWrapper.style.display = show ? 'block' : 'none';
+        toggleBtn.innerText = show ? '[ ✕ cancel ]' : '[ + new post ]';
+    }
 
-    const result = Comments.create(currentPostId, body);
-    if (result.ok) {
-        document.getElementById('commentBody').value = '';
+    toggleBtn.addEventListener('click', () => {
+        const isHidden = formWrapper.style.display === 'none' || !formWrapper.style.display;
+        toggleForm(isHidden);
+    });
+    cancelBtn.addEventListener('click', () => toggleForm(false));
+
+    newPostForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        alertBox.style.display = 'none';
+
+        const title = document.getElementById('postTitle').value.trim();
+        const body = document.getElementById('postBody').value.trim();
+
+        if (!title) { alertBox.innerText = 'Title is required.'; alertBox.style.display = 'block'; return; }
+        if (!body) { alertBox.innerText = 'Body is required.'; alertBox.style.display = 'block'; return; }
+
+        const submitBtn = document.getElementById('submitPost');
+        submitBtn.disabled = true;
+        submitBtn.innerText = '[ posting... ]';
+
+        const result = await Posts.create(title, body);
+        submitBtn.disabled = false;
+        submitBtn.innerText = '[ submit ]';
+
+        if (!result.ok) {
+            alertBox.innerText = result.error || 'Failed to create post.';
+            alertBox.style.display = 'block';
+            return;
+        }
+
+        newPostForm.reset();
+        toggleForm(false);
+        await loadPosts();
+    });
+
+    /* char counter */
+    document.getElementById('postBody').addEventListener('input', function () {
+        document.getElementById('charCount').innerText = this.value.length;
+    });
+
+    /* ==============================================================
+       VOTE + VIEW (event delegation on postList)
+       ============================================================== */
+    document.getElementById('postList').addEventListener('click', async (e) => {
+        const voteBtn = e.target.closest('.vote-btn');
+        const viewBtn = e.target.closest('.view-post-btn');
+
+        if (voteBtn) {
+            const postId = voteBtn.dataset.post;
+            const type = voteBtn.dataset.vote;
+            voteBtn.disabled = true;
+
+            let result;
+            try {
+                result = await Votes.vote(postId, type);
+            } catch (err) {
+                voteBtn.disabled = false;
+                return;
+            }
+            voteBtn.disabled = false;
+
+            if (!result.ok) {
+                // Show brief error below the post list
+                const errEl = document.getElementById('voteErr');
+                if (errEl) {
+                    errEl.innerText = result.error || 'Vote failed. Try refreshing the page.';
+                    errEl.style.display = 'block';
+                    setTimeout(() => { errEl.style.display = 'none'; }, 4000);
+                }
+                return;
+            }
+
+            // Use closest() — the button is already inside the card!
+            const card = voteBtn.closest('.post-card');
+            if (card) {
+                card.querySelector('.like-count').innerText = result.likes;
+                card.querySelector('.dislike-count').innerText = result.dislikes;
+                card.querySelectorAll('.vote-btn').forEach(b => {
+                    b.classList.remove('liked', 'disliked');
+                    if (result.myVote === 'like' && b.dataset.vote === 'like') b.classList.add('liked');
+                    if (result.myVote === 'dislike' && b.dataset.vote === 'dislike') b.classList.add('disliked');
+                });
+            }
+        }
+
+        if (viewBtn) {
+            await openModal(viewBtn.dataset.post);
+        }
+    });
+
+    /* ==============================================================
+       POST MODAL
+       ============================================================== */
+    const modal = document.getElementById('postModal');
+    const closeModalBtn = document.getElementById('closeModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalBody = document.getElementById('modalBody');
+    const modalMeta = document.getElementById('modalMeta');
+    const commentList = document.getElementById('commentList');
+    const noComments = document.getElementById('noComments');
+    const commentBody = document.getElementById('commentBody');
+    const commentAlert = document.getElementById('commentAlert');
+    const submitComment = document.getElementById('submitComment');
+
+    async function openModal(postId) {
+        currentPostId = postId;
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+
+        const post = await Posts.getById(postId);
+        if (!post) { modal.style.display = 'none'; return; }
+
+        modalTitle.innerText = post.title;
+        modalBody.innerText = post.body;
+        modalMeta.innerText = `Posted: ${formatDate(post.created_at)}  |  ▲ ${post.likes}  ▼ ${post.dislikes}`;
+
+        await loadComments(postId);
+    }
+
+    async function loadComments(postId) {
+        const comments = await Comments.getByPost(postId);
+        commentList.innerHTML = '';
+
+        if (!comments.length) {
+            noComments.style.display = 'block';
+            return;
+        }
+        noComments.style.display = 'none';
+        comments.forEach(c => {
+            const div = document.createElement('div');
+            div.className = 'comment-item';
+            div.innerHTML = `
+        <div class="comment-body">${escapeHtml(c.body)}</div>
+        <div class="comment-meta">${formatDate(c.created_at)}</div>
+      `;
+            commentList.appendChild(div);
+        });
+    }
+
+    closeModalBtn.addEventListener('click', () => {
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
+        currentPostId = null;
+        commentBody.value = '';
+        commentAlert.style.display = 'none';
+    });
+
+    /* comment char counter */
+    commentBody.addEventListener('input', function () {
+        document.getElementById('commentCharCount').innerText = this.value.length;
+    });
+
+    /* Submit comment via button (no <form> wrapper needed) */
+    submitComment.addEventListener('click', async () => {
+        const body = commentBody.value.trim();
+        commentAlert.style.display = 'none';
+        if (!body) {
+            commentAlert.className = 'anon-alert';
+            commentAlert.innerText = 'Comment cannot be empty.';
+            commentAlert.style.display = 'block';
+            return;
+        }
+
+        submitComment.disabled = true;
+        submitComment.innerText = '[ posting... ]';
+        const result = await Comments.create(currentPostId, body);
+        submitComment.disabled = false;
+        submitComment.innerText = '[ post comment ]';
+
+        if (!result.ok) {
+            commentAlert.className = 'anon-alert';
+            commentAlert.innerText = result.error || 'Failed to post comment.';
+            commentAlert.style.display = 'block';
+            return;
+        }
+        commentBody.value = '';
         document.getElementById('commentCharCount').innerText = '0';
-        renderComments(currentPostId);
-    } else {
-        alertEl.className = 'anon-alert';
-        alertEl.innerText = result.error;
-        alertEl.style.display = 'block';
-    }
-});
+        await loadComments(currentPostId);
+    });
 
-// Close modal on backdrop click (not on content)
-document.getElementById('postModal').addEventListener('click', function (e) {
-    if (e.target === this) {
-        document.getElementById('closeModal').click();
-    }
-});
+})();
